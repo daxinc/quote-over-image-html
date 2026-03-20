@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Over Image</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+      min-height: 100vh;
+    }
+
+    /* --- Header --- */
+    .header {
+      text-align: center;
+      padding: 32px 24px 16px;
+      position: relative;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .tagline {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .lang-toggle {
+      position: absolute;
+      top: 32px;
+      right: 24px;
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+
+    /* --- Layout --- */
+    .workspace {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 24px 48px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* --- Preview Canvas --- */
+    .preview-section {
+      position: sticky;
+      top: 24px;
+    }
+
+    .canvas {
+      position: relative;
+      width: 100%;
+      background-size: cover;
+      background-position: center;
+      background-color: #1f2937;
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .text-overlay-backdrop {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      padding: 5%;
+    }
+
+    .text-overlay-backdrop.has-text {
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+
+    .text-overlay {
+      color: #ffffff;
+      font-family: Georgia, "Times New Roman", "PingFang SC", "Microsoft YaHei", serif;
+      font-weight: 500;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      width: 90%;
+      text-shadow:
+        0 0 1px rgba(0, 0, 0, 0.80),
+        0 0 1px rgba(0, 0, 0, 0.80),
+        0 0 3px rgba(0, 0, 0, 0.50),
+        0 0 3px rgba(0, 0, 0, 0.50),
+        0 0 6px rgba(0, 0, 0, 0.30),
+        0 0 6px rgba(0, 0, 0, 0.30);
+    }
+
+    .text-overlay.inverted {
+      color: #000000;
+      text-shadow:
+        0 0 1px rgba(255, 255, 255, 0.80),
+        0 0 1px rgba(255, 255, 255, 0.80),
+        0 0 3px rgba(255, 255, 255, 0.50),
+        0 0 3px rgba(255, 255, 255, 0.50),
+        0 0 6px rgba(255, 255, 255, 0.30),
+        0 0 6px rgba(255, 255, 255, 0.30);
+    }
+
+    /* --- Controls Panel --- */
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    /* --- Gallery --- */
+    .gallery {
+      flex-wrap: wrap;
+      overflow-y: auto;
+      max-height: 580px;
+      padding-bottom: 4px;
+    }
+
+    .thumbnail {
+      width: calc(25% - 6px);
+      height: auto;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .thumbnail:hover {
+      opacity: 1;
+    }
+
+    .thumbnail.selected {
+      border-color: #3b82f6;
+      opacity: 1;
+    }
+
+    /* --- Textarea --- */
+    .quote-input {
+      width: 100%;
+      min-height: 200px;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-family: Georgia, "Times New Roman", "PingFang SC", "Microsoft YaHei", serif;
+      font-size: 16px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .quote-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* --- Buttons --- */
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #ffffff;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      color: #374151;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
+    }
+
+    .btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+
+    .btn.active {
+      background: #3b82f6;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+
+    .btn.active:hover {
+      background: #2563eb;
+    }
+
+    .font-size-input {
+      width: 52px;
+      padding: 6px 4px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .font-size-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      background: #3b82f6;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #2563eb;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .qr-overlay {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      width: 60px;
+      height: 60px;
+    }
+
+    /* --- Footer --- */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="js/images.js"></script>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10';
+    import { useState, useRef, useCallback, useEffect } from 'https://esm.sh/preact@10/hooks';
+    import htm from 'https://esm.sh/htm@3';
+
+    const html = htm.bind(h);
+
+    // ── Constants ───────────────────────────────────────────────
+    const FONT_MIN = 12;
+    const FONT_MAX = 72;
+    const FONT_DEFAULT = 24;
+    const FONT_STEP = 2;
+
+    const ALIGN_H_MAP = { left: "flex-start", center: "center", right: "flex-end" };
+    const ALIGN_V_MAP = { top: "flex-start",  middle: "center", bottom: "flex-end" };
+
+    const STRINGS = {
+      en: {
+        title: "Quote Over Image",
+        tagline: "Create beautiful quote images in seconds",
+        background: "Background",
+        quote: "Quote",
+        fontSize: "Font Size",
+        alignment: "Alignment",
+        placeholder: "Type your quote here...",
+        left: "Left", center: "Center", right: "Right",
+        top: "Top", middle: "Middle", bottom: "Bottom",
+        reset: "Reset",
+        download: "Download",
+        exporting: "Exporting…",
+        footer: "Quote Over Image — no signup, just create.",
+        includeQr: 'Include "https://bodhinature.com/" QR code',
+      },
+      zh: {
+        title: "图片名言",
+        tagline: "轻松创建精美名言图片",
+        background: "背景图片",
+        quote: "名言",
+        fontSize: "字体大小",
+        alignment: "对齐方式",
+        placeholder: "在此输入名言...",
+        left: "左", center: "居中", right: "右",
+        top: "上", middle: "居中", bottom: "下",
+        reset: "重置",
+        download: "下载",
+        exporting: "导出中…",
+        footer: "图片名言 — 无需注册，即刻创作。",
+        includeQr: '包含二维码 "https://bodhinature.com/"',
+      },
+    };
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    const _lumCanvas = document.createElement("canvas");
+    _lumCanvas.width = 50;
+    _lumCanvas.height = 50;
+    const _lumCtx = _lumCanvas.getContext("2d");
+
+    function sampleLuminance(imageUrl) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          _lumCtx.drawImage(img, 0, 0, 50, 50);
+          const data = _lumCtx.getImageData(0, 0, 50, 50).data;
+          let sum = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          }
+          resolve(sum / (data.length / 4) / 255);
+        };
+        img.onerror = () => resolve(0);
+        img.src = imageUrl;
+      });
+    }
+
+    // ── Components ──────────────────────────────────────────────
+
+    function PreviewCanvas({ backgroundUrl, quoteText, fontSize, alignH, alignV, canvasRef, aspectRatio, includeQr }) {
+      const [inverted, setInverted] = useState(false);
+
+      useEffect(() => {
+        let cancelled = false;
+        sampleLuminance(backgroundUrl).then(lum => {
+          if (!cancelled) setInverted(lum >= 0.5);
+        });
+        return () => { cancelled = true; };
+      }, [backgroundUrl]);
+
+      const backdropStyle = {
+        justifyContent: "center",
+        alignItems: ALIGN_V_MAP[alignV],
+      };
+
+      const canvasStyle = {
+        backgroundImage: "url('" + backgroundUrl + "')",
+        aspectRatio: aspectRatio || "4 / 3",
+      };
+
+      const overlayStyle = {
+        fontSize: fontSize + "px",
+        textAlign: alignH,
+      };
+
+      return html`
+        <div class="canvas" ref=${canvasRef} style=${canvasStyle}>
+          <div class="text-overlay-backdrop ${quoteText ? "has-text" : ""}" style=${backdropStyle}>
+            ${quoteText && html`
+              <span class="text-overlay ${inverted ? "inverted" : ""}" style=${overlayStyle}>
+                ${quoteText}
+              </span>
+            `}
+          </div>
+          ${includeQr && html`<img class="qr-overlay" src="qr.png" alt="QR" />`}
+        </div>
+      `;
+    }
+
+    function ImageGallery({ images, selectedId, onSelect, strings }) {
+      return html`
+        <div>
+          <div class="control-label">${strings.background}</div>
+          <div class="control-group gallery">
+            ${images.map(img => html`
+              <img
+                key=${img.id}
+                class="thumbnail ${img.id === selectedId ? "selected" : ""}"
+                src=${img.thumb}
+                alt=${img.id}
+                onClick=${() => onSelect(img)}
+              />
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    function TextInput({ value, onInput, strings }) {
+      return html`
+        <div>
+          <div class="control-label">${strings.quote}</div>
+          <textarea
+            class="quote-input"
+            placeholder=${strings.placeholder}
+            value=${value}
+            onInput=${e => onInput(e.target.value)}
+          />
+        </div>
+      `;
+    }
+
+    function FontSizeControls({ fontSize, onChange, onSetFontSize, onReset, strings }) {
+      const [draft, setDraft] = useState(String(fontSize));
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        if (document.activeElement !== inputRef.current) {
+          setDraft(String(fontSize));
+        }
+      }, [fontSize]);
+
+      const commitValue = useCallback(() => {
+        const n = parseInt(draft, 10);
+        if (isNaN(n) || n < FONT_MIN || n > FONT_MAX) {
+          setDraft(String(fontSize));
+        } else {
+          onSetFontSize(n);
+        }
+      }, [draft, fontSize, onSetFontSize]);
+
+      const handleKeyDown = useCallback((e) => {
+        if (e.key === "Enter") {
+          e.target.blur();
+        }
+      }, []);
+
+      const handleWheel = useCallback((e) => {
+        e.preventDefault();
+        onChange(e.deltaY < 0 ? FONT_STEP : -FONT_STEP);
+      }, [onChange]);
+
+      useEffect(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.addEventListener("wheel", handleWheel, { passive: false });
+        return () => el.removeEventListener("wheel", handleWheel);
+      }, [handleWheel]);
+
+      return html`
+        <div>
+          <div class="control-label">${strings.fontSize}</div>
+          <div class="control-group">
+            <button class="btn" onClick=${() => onChange(-FONT_STEP)}>−</button>
+            <input
+              ref=${inputRef}
+              class="font-size-input"
+              type="text"
+              inputmode="numeric"
+              value=${draft}
+              onInput=${e => setDraft(e.target.value)}
+              onBlur=${commitValue}
+              onKeyDown=${handleKeyDown}
+            />
+            <button class="btn" onClick=${() => onChange(FONT_STEP)}>+</button>
+            <button class="btn" onClick=${onReset}>${strings.reset}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function AlignmentControls({ alignH, alignV, onChangeH, onChangeV, strings }) {
+      const hOptions = [
+        { value: "left", label: strings.left },
+        { value: "center", label: strings.center },
+        { value: "right", label: strings.right },
+      ];
+      const vOptions = [
+        { value: "top", label: strings.top },
+        { value: "middle", label: strings.middle },
+        { value: "bottom", label: strings.bottom },
+      ];
+
+      return html`
+        <div>
+          <div class="control-label">${strings.alignment}</div>
+          <div class="control-group">
+            ${hOptions.map(o => html`
+              <button
+                key=${o.value}
+                class="btn ${alignH === o.value ? "active" : ""}"
+                onClick=${() => onChangeH(o.value)}
+              >${o.label}</button>
+            `)}
+          </div>
+          <div class="control-group" style="margin-top: 8px">
+            ${vOptions.map(o => html`
+              <button
+                key=${o.value}
+                class="btn ${alignV === o.value ? "active" : ""}"
+                onClick=${() => onChangeV(o.value)}
+              >${o.label}</button>
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    function DownloadButton({ canvasRef, selectedId, strings }) {
+      const [exporting, setExporting] = useState(false);
+
+      const handleExport = useCallback(async () => {
+        if (!canvasRef.current || exporting) return;
+        setExporting(true);
+        try {
+          const rendered = await html2canvas(canvasRef.current, {
+            useCORS: true,
+            scale: 2,
+            backgroundColor: null,
+            logging: false,
+          });
+          rendered.toBlob(blob => {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, "0");
+            const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${selectedId}-${ts}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }, "image/png");
+        } finally {
+          setExporting(false);
+        }
+      }, [canvasRef, selectedId, exporting]);
+
+      return html`
+        <button
+          class="btn-primary"
+          onClick=${handleExport}
+          disabled=${exporting}
+        >
+          ${exporting ? strings.exporting : strings.download}
+        </button>
+      `;
+    }
+
+    // ── Persistence ─────────────────────────────────────────────
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem("quote-over-image");
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function saveState(state) {
+      try {
+        localStorage.setItem("quote-over-image", JSON.stringify(state));
+      } catch {}
+    }
+
+    const _initialSavedState = loadState();
+
+    // ── App (Root) ──────────────────────────────────────────────
+
+    function App() {
+      const [backgroundUrl, setBackgroundUrl] = useState(
+        () => (IMAGES.find(img => img.id === _initialSavedState?.selectedImageId) || IMAGES[0]).src
+      );
+      const [selectedId, setSelectedId]       = useState(
+        () => (IMAGES.find(img => img.id === _initialSavedState?.selectedImageId) || IMAGES[0]).id
+      );
+      const [quoteText, setQuoteText]         = useState(() => _initialSavedState?.quoteText ?? "");
+      const [fontSize, setFontSize]           = useState(() => _initialSavedState?.fontSize ?? FONT_DEFAULT);
+      const [alignH, setAlignH]              = useState(() => _initialSavedState?.alignH ?? "left");
+      const [alignV, setAlignV]              = useState(() => _initialSavedState?.alignV ?? "top");
+      const [lang, setLang]                  = useState(() => _initialSavedState?.lang ?? "en");
+      const [includeQr, setIncludeQr]        = useState(() => _initialSavedState?.includeQr ?? false);
+      const [aspectRatio, setAspectRatio]    = useState(null);
+      const canvasRef = useRef(null);
+
+      const strings = STRINGS[lang];
+
+      const saveTimerRef = useRef(null);
+      const pendingStateRef = useRef(null);
+      pendingStateRef.current = { selectedImageId: selectedId, quoteText, alignH, alignV, fontSize, lang, includeQr };
+
+      useEffect(() => {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveState(pendingStateRef.current);
+        }, 2000);
+        return () => clearTimeout(saveTimerRef.current);
+      }, [selectedId, quoteText, alignH, alignV, fontSize, lang, includeQr]);
+
+      useEffect(() => {
+        const handleBeforeUnload = () => {
+          clearTimeout(saveTimerRef.current);
+          saveState(pendingStateRef.current);
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+      }, []);
+
+      useEffect(() => {
+        document.documentElement.lang = lang;
+        document.title = strings.title;
+      }, [lang]);
+
+      useEffect(() => {
+        const img = new Image();
+        img.onload = () => {
+          setAspectRatio(img.naturalWidth + " / " + img.naturalHeight);
+        };
+        img.src = backgroundUrl;
+      }, [backgroundUrl]);
+
+      const handleSelectImage = useCallback((img) => {
+        setBackgroundUrl(img.src);
+        setSelectedId(img.id);
+      }, []);
+
+      const handleFontSize = useCallback((delta) => {
+        setFontSize(s => Math.min(FONT_MAX, Math.max(FONT_MIN, s + delta)));
+      }, []);
+
+      const handleResetFontSize = useCallback(() => {
+        setFontSize(FONT_DEFAULT);
+      }, []);
+
+      const handleSetFontSize = useCallback((value) => {
+        setFontSize(Math.min(FONT_MAX, Math.max(FONT_MIN, value)));
+      }, []);
+
+      return html`
+        <header class="header">
+          <h1>${strings.title}</h1>
+          <p class="tagline">${strings.tagline}</p>
+          <button class="btn lang-toggle" onClick=${() => setLang(l => l === "en" ? "zh" : "en")}>
+            ${lang === "en" ? "中文" : "EN"}
+          </button>
+        </header>
+        <main class="workspace">
+          <section class="preview-section">
+            <${PreviewCanvas}
+              backgroundUrl=${backgroundUrl}
+              quoteText=${quoteText}
+              fontSize=${fontSize}
+              alignH=${alignH}
+              alignV=${alignV}
+              canvasRef=${canvasRef}
+              aspectRatio=${aspectRatio}
+              includeQr=${includeQr}
+            />
+          </section>
+          <aside class="controls-panel">
+            <${ImageGallery}
+              images=${IMAGES}
+              selectedId=${selectedId}
+              onSelect=${handleSelectImage}
+              strings=${strings}
+            />
+            <${TextInput} value=${quoteText} onInput=${setQuoteText} strings=${strings} />
+            <${FontSizeControls}
+              fontSize=${fontSize}
+              onChange=${handleFontSize}
+              onSetFontSize=${handleSetFontSize}
+              onReset=${handleResetFontSize}
+              strings=${strings}
+            />
+            <${AlignmentControls}
+              alignH=${alignH} alignV=${alignV}
+              onChangeH=${setAlignH} onChangeV=${setAlignV}
+              strings=${strings}
+            />
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#374151;cursor:pointer;">
+              <input
+                type="checkbox"
+                checked=${includeQr}
+                onChange=${e => setIncludeQr(e.target.checked)}
+              />
+              ${strings.includeQr}
+            </label>
+            <${DownloadButton} canvasRef=${canvasRef} selectedId=${selectedId} strings=${strings} />
+          </aside>
+        </main>
+        <footer class="footer">
+          ${strings.footer}
+        </footer>
+      `;
+    }
+
+    // ── Mount ───────────────────────────────────────────────────
+    render(html`<${App} />`, document.getElementById("app"));
+  </script>
+  <noscript>
+    <p style="text-align:center;padding:48px;">This app requires JavaScript and a modern browser.</p>
+  </noscript>
+</body>
+</html>
